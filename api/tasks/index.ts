@@ -6,9 +6,9 @@ const tasksPath = path.join(process.cwd(), 'public', 'tasks.json');
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // Креирај фајл ако не постоји
+    // Аутоматско креирање фајла ако не постоји
     await fs.access(tasksPath).catch(async () => {
-      await fs.writeFile(tasksPath, '[]');
+      await fs.writeFile(tasksPath, '[]', 'utf8');
     });
 
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,13 +20,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      await fs.writeFile(tasksPath, JSON.stringify(req.body));
+      await fs.writeFile(tasksPath, JSON.stringify(req.body, null, 2));
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).end();
   } catch (error) {
-    console.error('Error:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    console.error('Server error:', error);
+    return res.status(500).json({ 
+      error: 'Internal Server Error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
