@@ -2,15 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Task } from './types';
 import { TaskBoard } from './components/TaskBoard';
 import { TaskModal } from './components/TaskModal';
-import { Search, BarChart2, SortAsc, Filter } from 'lucide-react';
+import { Search, BarChart2, SortAsc, Filter, RefreshCw } from 'lucide-react';
 import { TaskFilters, type TaskFilters as TaskFiltersType } from './components/TaskFilters';
 
+const TASKS_API_URL = import.meta.env.DEV 
+  ? 'http://localhost:3000/api/tasks' 
+  : '/api/tasks';
 function App() {
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem('tasks');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,50 +19,77 @@ function App() {
     status: [],
     priority: [],
     assignee: [],
-    dueDateRange: {
-      start: '',
-      end: '',
-    },
+    dueDateRange: { start: '', end: '' },
   });
 
-  useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  const handleSaveTask = (taskData: Partial<Task>) => {
-    if (selectedTask) {
-      setTasks(prev =>
-        prev.map(t => (t.id === selectedTask.id ? { ...t, ...taskData } : t))
-      );
-    } else {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        comments: [],
-        ...taskData,
-      } as Task;
-      setTasks(prev => [...prev, newTask]);
+  const loadTasks = async () => {
+    try {
+      const response = await fetch(TASKS_API_URL);
+      if (!response.ok) throw new Error('Error loading tasks');
+      const data = await response.json();
+      setTasks(data);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
     }
-    setIsModalOpen(false);
-    setSelectedTask(undefined);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    if (window.confirm('Да ли сте сигурни да желите да обришете овај задатак?')) {
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+  const updateTasks = async (newTasks: Task[]) => {
+    try {
+      await fetch(TASKS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTasks),
+      });
+      await loadTasks(); // Automatski osveži podatke nakon promene
+    } catch (error) {
+      console.error('Error saving tasks:', error);
+    }
+  };
+
+  // Polling za automatsko osvežavanje
+  useEffect(() => {
+    const interval = setInterval(loadTasks, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  const handleSaveTask = async (taskData: Partial<Task>) => {
+    try {
+      const newTask: Task = selectedTask 
+        ? { ...selectedTask, ...taskData }
+        : {
+            id: Date.now().toString(),
+            createdAt: new Date().toISOString(),
+            comments: [],
+            ...taskData,
+          } as Task;
+
+      const newTasks = selectedTask
+        ? tasks.map(t => t.id === selectedTask.id ? newTask : t)
+        : [...tasks, newTask];
+
+      await updateTasks(newTasks);
+    } finally {
       setIsModalOpen(false);
       setSelectedTask(undefined);
     }
   };
 
-  const handleStatusChange = (taskId: string, newStatus: Task['status']) => {
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === taskId
-          ? { ...task, status: newStatus }
-          : task
-      )
+  const handleDeleteTask = async (taskId: string) => {
+    if (window.confirm('Да ли сте сигурни да желите да обришете овај задатак?')) {
+      const newTasks = tasks.filter(task => task.id !== taskId);
+      await updateTasks(newTasks);
+    }
+  };
+
+  const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
+    const newTasks = tasks.map(task => 
+      task.id === taskId ? { ...task, status: newStatus } : task
     );
+    await updateTasks(newTasks);
   };
 
   const resetFilters = () => {
@@ -71,10 +97,7 @@ function App() {
       status: [],
       priority: [],
       assignee: [],
-      dueDateRange: {
-        start: '',
-        end: '',
-      },
+      dueDateRange: { start: '', end: '' },
     });
   };
 
@@ -119,6 +142,16 @@ function App() {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
               Управљање задацима
             </h1>
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={loadTasks}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                <RefreshCw size={20} />
+                <span>Освежи податке</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="relative flex-1 md:w-64">

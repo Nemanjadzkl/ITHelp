@@ -1,0 +1,24 @@
+[
+  {
+    "id": "1737547949632",
+    "createdAt": "2025-01-22T12:12:29.632Z",
+    "comments": [],
+    "title": "Promena naslova drugi put",
+    "details": "test",
+    "status": "open",
+    "assignee": "aleksandar",
+    "priority": "medium",
+    "dueDate": "2025-01-22"
+  },
+  {
+    "id": "1737548234689",
+    "createdAt": "2025-01-22T12:17:14.689Z",
+    "comments": [],
+    "title": "mcacko",
+    "details": "macko\n",
+    "status": "open",
+    "assignee": "aleksandar",
+    "priority": "medium",
+    "dueDate": "2025-01-22"
+  }
+]
